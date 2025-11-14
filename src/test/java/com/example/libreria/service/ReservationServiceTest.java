@@ -239,6 +239,46 @@ class ReservationServiceTest {
     @Test
     void testReturnBook_Overdue() {
         // TODO: Implementar el test de devolución de libro con retraso
+        //given
+        Long reservationId = 1L;
+        testReservation.setStatus(Reservation.ReservationStatus.ACTIVE);
+        testReservation.setExpectedReturnDate(LocalDate.of(2025, 11, 20));
+        testReservation.setStartDate(LocalDate.of(2025, 11, 10));
+        testReservation.setRentalDays(10);
+
+        testBook.setAvailableQuantity(5);
+        ReturnBookRequestDTO returnRequest = new ReturnBookRequestDTO();
+        returnRequest.setReturnDate(LocalDate.of(2025, 11, 23));
+        when(reservationRepository.findById(reservationId)).thenReturn(Optional.of(testReservation));
+        when(reservationRepository.save(any(Reservation.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        long daysLate = 3;
+
+        BigDecimal expectedLateFee =
+                testBook.getPrice()
+                        .multiply(new BigDecimal("0.15"))
+                        .multiply(BigDecimal.valueOf(daysLate));
+        ReservationResponseDTO expectedDTO = new ReservationResponseDTO();
+        expectedDTO.setId(testReservation.getId());
+        expectedDTO.setUserId(testUser.getId());
+        expectedDTO.setBookExternalId(testBook.getExternalId());
+        expectedDTO.setLateFee(expectedLateFee);
+        expectedDTO.setStatus(Reservation.ReservationStatus.RETURNED);
+
+        doReturn(expectedDTO).when(reservationService).convertToDTO(testReservation);
+
+        ReservationResponseDTO result = reservationService.returnBook(reservationId, returnRequest);
+        assertNotNull(result);
+        assertEquals(testReservation.getId(), result.getId());
+        assertEquals(testUser.getId(), result.getUserId());
+        assertEquals(testBook.getExternalId(), result.getBookExternalId());
+        assertEquals(expectedLateFee, result.getLateFee());
+        assertEquals(Reservation.ReservationStatus.RETURNED, result.getStatus());
+        assertEquals(6, testBook.getAvailableQuantity());
+
+        verify(reservationRepository).findById(reservationId);
+        verify(reservationRepository).save(testReservation);
+        verify(bookRepository).save(testBook);
     }
     
     @Test
