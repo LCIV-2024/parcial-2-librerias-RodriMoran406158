@@ -1,8 +1,6 @@
 package com.example.libreria.service;
 
-import com.example.libreria.dto.ReservationRequestDTO;
-import com.example.libreria.dto.ReservationResponseDTO;
-import com.example.libreria.dto.ReturnBookRequestDTO;
+import com.example.libreria.dto.*;
 import com.example.libreria.model.Book;
 import com.example.libreria.model.Reservation;
 import com.example.libreria.model.User;
@@ -14,6 +12,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.modelmapper.ModelMapper;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -41,6 +40,9 @@ class ReservationServiceTest {
     
     @Mock
     private UserService userService;
+
+    @Mock
+    private ModelMapper modelMapper;
     
     @InjectMocks
     private ReservationService reservationService;
@@ -79,6 +81,25 @@ class ReservationServiceTest {
     @Test
     void testCreateReservation_Success() {
         // TODO: Implementar el test de creación de reserva exitosa
+        //given
+        ReservationRequestDTO requestDTO = new ReservationRequestDTO();
+        requestDTO.setUserId(1L);
+        requestDTO.setBookExternalId(1L);
+        requestDTO.setRentalDays(10);
+        requestDTO.setStartDate(LocalDate.of(2025, 11, 14));
+
+        UserResponseDTO userResponse = new UserResponseDTO();
+        BookResponseDTO bookResponse = new BookResponseDTO();
+        bookResponse.setAvailableQuantity(99);
+
+        //when
+        when(userService.getUserById(1L)).thenReturn(userResponse);
+        when(bookService.getBookByExternalId(1L)).thenReturn(bookResponse);
+        when(modelMapper.map(userResponse, User.class)).thenReturn(testUser);
+        when(modelMapper.map(bookResponse, Book.class)).thenReturn(testBook);
+
+        //then
+
     }
     
     @Test

@@ -1,1 +1,19 @@
 # // TODO: Implementar el docker-compose
+services:
+  libreria-service:
+    container_name: libreria-service
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+
+  libreria-db:
+    image: postgres:16
+    container_name: libreria-db
+    environment:
+      POSTGRES_DB: libreriadb
+      POSTGRES_USER: liberia
+      POSTGRES_PASSWORD: libreria
+    ports:
+      - "5430:5432"

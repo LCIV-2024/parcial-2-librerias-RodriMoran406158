@@ -31,7 +31,7 @@ public class BookService {
             
             if (existingBook == null) {
                 Book newBook = convertToBook(externalBook);
-                newBook.setStockQuantity(10); // Stock inicial por defecto
+                newBook.setStockQuantity(10);
                 newBook.setAvailableQuantity(10);
                 bookRepository.save(newBook);
                 log.info("Created new book: {}", newBook.getTitle());
