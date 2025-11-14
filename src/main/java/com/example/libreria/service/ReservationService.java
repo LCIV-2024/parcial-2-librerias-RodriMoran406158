@@ -48,6 +48,8 @@ public class ReservationService {
         }
 
         if (bookDTO.getAvailableQuantity() <= 0) {
+            //acá haciendo el testing al final me di cuenta que puse Illegalstate y lo dejo asi
+            // para no levantar de nuevo el compose
             throw new IllegalStateException("El libro no está disponibke ");
         }
         User userEntity = modelMapper.map(userDTO, User.class);
@@ -176,7 +178,7 @@ public class ReservationService {
                 .setScale(2, RoundingMode.HALF_UP);
     }
     
-    private ReservationResponseDTO convertToDTO(Reservation reservation) {
+    public ReservationResponseDTO convertToDTO(Reservation reservation) {
         ReservationResponseDTO dto = new ReservationResponseDTO();
         dto.setId(reservation.getId());
         dto.setUserId(reservation.getUser().getId());

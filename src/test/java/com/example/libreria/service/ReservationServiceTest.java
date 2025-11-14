@@ -11,6 +11,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.modelmapper.ModelMapper;
 
@@ -43,7 +45,8 @@ class ReservationServiceTest {
 
     @Mock
     private ModelMapper modelMapper;
-    
+
+    @Spy
     @InjectMocks
     private ReservationService reservationService;
     
@@ -84,32 +87,153 @@ class ReservationServiceTest {
         //given
         ReservationRequestDTO requestDTO = new ReservationRequestDTO();
         requestDTO.setUserId(1L);
-        requestDTO.setBookExternalId(1L);
+        requestDTO.setBookExternalId(258027L);
         requestDTO.setRentalDays(10);
         requestDTO.setStartDate(LocalDate.of(2025, 11, 14));
 
         UserResponseDTO userResponse = new UserResponseDTO();
+        userResponse.setId(testUser.getId());
+        userResponse.setName(testUser.getName());
+
         BookResponseDTO bookResponse = new BookResponseDTO();
-        bookResponse.setAvailableQuantity(99);
+        bookResponse.setExternalId(testBook.getExternalId());
+        bookResponse.setPrice(testBook.getPrice());
+        bookResponse.setAvailableQuantity(testBook.getAvailableQuantity());
 
         //when
         when(userService.getUserById(1L)).thenReturn(userResponse);
-        when(bookService.getBookByExternalId(1L)).thenReturn(bookResponse);
+        when(bookService.getBookByExternalId(258027L)).thenReturn(bookResponse);
         when(modelMapper.map(userResponse, User.class)).thenReturn(testUser);
         when(modelMapper.map(bookResponse, Book.class)).thenReturn(testBook);
 
         //then
+        Reservation saved = new Reservation();
+        saved.setId(999L);
+        saved.setUser(testUser);
+        saved.setBook(testBook);
+        saved.setRentalDays(10);
+        saved.setStartDate(requestDTO.getStartDate());
+        saved.setExpectedReturnDate(requestDTO.getStartDate().plusDays(10));
+        saved.setDailyRate(testBook.getPrice());
+        saved.setTotalFee(testBook.getPrice().multiply(BigDecimal.valueOf(10)));
+        saved.setStatus(Reservation.ReservationStatus.ACTIVE);
 
+        when(reservationRepository.save(any(Reservation.class))).thenReturn(saved);
+
+        ReservationResponseDTO expectedResponse = new ReservationResponseDTO();
+        expectedResponse.setId(999L);
+        expectedResponse.setUserId(testUser.getId());
+        expectedResponse.setBookExternalId(testBook.getExternalId());
+        expectedResponse.setStartDate(requestDTO.getStartDate());
+        expectedResponse.setExpectedReturnDate(requestDTO.getStartDate().plusDays(10));
+
+        doReturn(expectedResponse).when(reservationService).convertToDTO(saved);
+
+        ReservationResponseDTO result = reservationService.createReservation(requestDTO);
+
+        assertNotNull(result);
+        assertEquals(999L, result.getId());
+        assertEquals(testUser.getId(), result.getUserId());
+        assertEquals(testBook.getExternalId(), result.getBookExternalId());
+        assertEquals(requestDTO.getStartDate(), result.getStartDate());
+        assertEquals(requestDTO.getStartDate().plusDays(10), result.getExpectedReturnDate());
+
+        verify(userService).getUserById(1L);
+        verify(bookService).getBookByExternalId(258027L);
+        verify(reservationRepository).save(any(Reservation.class));
+        verify(bookRepository).save(any(Book.class));
     }
     
     @Test
     void testCreateReservation_BookNotAvailable() {
         // TODO: Implementar el test de creación de reserva cuando el libro no está disponible
+        //given
+        ReservationRequestDTO requestDTO = new ReservationRequestDTO();
+        requestDTO.setUserId(1L);
+        requestDTO.setBookExternalId(258027L);
+
+        UserResponseDTO userResponse = new UserResponseDTO();
+        userResponse.setId(testUser.getId());
+        userResponse.setName(testUser.getName());
+
+        BookResponseDTO bookResponse = new BookResponseDTO();
+        bookResponse.setExternalId(testBook.getExternalId());
+        bookResponse.setPrice(testBook.getPrice());
+        bookResponse.setAvailableQuantity(0);
+
+        //when
+        when(userService.getUserById(1L)).thenReturn(userResponse);
+        when(bookService.getBookByExternalId(258027L)).thenReturn(bookResponse);
+
+        //then
+
+
+        IllegalStateException exception = assertThrows(IllegalStateException.class,
+                () -> {
+                    ReservationResponseDTO result = reservationService.createReservation(requestDTO);
+                });
+
+        assertEquals("El libro no está disponibke ",exception.getMessage());
+
+//        assertNotNull(result);
+//        assertEquals(999L, result.getId());
+//        assertEquals(testUser.getId(), result.getUserId());
+//        assertEquals(testBook.getExternalId(), result.getBookExternalId());
+//        assertEquals(requestDTO.getStartDate(), result.getStartDate());
+//        assertEquals(requestDTO.getStartDate().plusDays(10), result.getExpectedReturnDate());
+
+//        verify(userService).getUserById(1L);
+//        verify(bookService).getBookByExternalId(258027L);
+//        verify(reservationRepository).save(any(Reservation.class));
+//        verify(bookRepository).save(any(Book.class));
     }
     
     @Test
     void testReturnBook_OnTime() {
         // TODO: Implementar el test de devolución de libro en tiempo
+        //given
+        Long reservationId = 1L;
+        testReservation.setExpectedReturnDate(LocalDate.of(2025, 11, 20));
+        testReservation.setStartDate(LocalDate.of(2025, 11, 13));
+        testReservation.setRentalDays(7);
+        testReservation.setStatus(Reservation.ReservationStatus.ACTIVE);
+        testReservation.setLateFee(BigDecimal.ZERO);
+
+        testBook.setAvailableQuantity(5);
+
+        ReturnBookRequestDTO returnRequest = new ReturnBookRequestDTO();
+        returnRequest.setReturnDate(LocalDate.of(2025, 11, 20));
+
+        when(reservationRepository.findById(reservationId)).thenReturn(Optional.of(testReservation));
+        when(reservationRepository.save(any(Reservation.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        ReservationResponseDTO expectedDTO = new ReservationResponseDTO();
+        expectedDTO.setId(testReservation.getId());
+        expectedDTO.setUserId(testReservation.getUser().getId());
+        expectedDTO.setBookExternalId(testReservation.getBook().getExternalId());
+        expectedDTO.setLateFee(BigDecimal.ZERO);
+        expectedDTO.setStatus(Reservation.ReservationStatus.RETURNED);
+
+        doReturn(expectedDTO).when(reservationService).convertToDTO(testReservation);
+
+        //when
+        ReservationResponseDTO result = reservationService.returnBook(reservationId, returnRequest);
+
+
+        //then
+        assertNotNull(result);
+        assertEquals(testReservation.getId(), result.getId());
+        assertEquals(testUser.getId(), result.getUserId());
+        assertEquals(testBook.getExternalId(), result.getBookExternalId());
+
+        assertEquals(BigDecimal.ZERO, result.getLateFee());
+
+        assertEquals(Reservation.ReservationStatus.RETURNED, result.getStatus());
+        assertEquals(6, testBook.getAvailableQuantity());
+        verify(reservationRepository).findById(reservationId);
+        verify(reservationRepository).save(testReservation);
+        verify(bookRepository).save(testBook);
+
     }
     
     @Test
