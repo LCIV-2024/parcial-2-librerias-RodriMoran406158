@@ -295,6 +295,15 @@ class ReservationServiceTest {
     void testGetAllReservations() {
         Reservation reservation2 = new Reservation();
         reservation2.setId(2L);
+        reservation2.setUser(testUser);
+        reservation2.setBook(testBook);
+        reservation2.setRentalDays(5);
+        reservation2.setStartDate(LocalDate.now());
+        reservation2.setExpectedReturnDate(LocalDate.now().plusDays(5));
+        reservation2.setDailyRate(testBook.getPrice());
+        reservation2.setTotalFee(testBook.getPrice().multiply(BigDecimal.valueOf(5)));
+        reservation2.setStatus(Reservation.ReservationStatus.ACTIVE);
+        reservation2.setCreatedAt(LocalDateTime.now());
         
         when(reservationRepository.findAll()).thenReturn(Arrays.asList(testReservation, reservation2));
         
